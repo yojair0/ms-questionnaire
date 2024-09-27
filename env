@@ -1,4 +1,0 @@
-APP_PORT=3003
-MONGODB_URI=mongodb://root:toor@localhost:27017/
-MONGODB_DATABASE=ms-questionnaire
-MS_IAM=http://localhost:3002/auth/check

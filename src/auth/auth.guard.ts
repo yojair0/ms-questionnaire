@@ -15,23 +15,18 @@ export class AuthGuard implements CanActivate {
     const token = request.headers['authorization']?.split(' ')[1];
 
     if (!token) {
-      throw new UnauthorizedException('Token no proporcionado');
+      throw new UnauthorizedException('Authorization token not provided');
     }
 
-    // Obtiene el valor de MS_IAM de las variables de entorno
+    // Get MS_IAM environment variable
     const msIamUrl = this.configService.get<string>('MS_IAM');
 
-    // Si msIamUrl es undefined, lanza un error
     if (!msIamUrl) {
-      console.error('La variable de entorno MS_IAM no está definida.');
-      throw new Error('MS_IAM no está definida.');
+      // Return a more descriptive error for undefined MS_IAM
+      throw new Error('MS_IAM environment variable is not set. Please configure the service URL.');
     }
 
     const authUrl = `${msIamUrl}`;
-
-    // Imprimimos la URL y el token para depuración
-    console.log('Verificando token con URL:', authUrl);
-    console.log('Token:', token);
 
     try {
       const response = await lastValueFrom(
@@ -40,17 +35,19 @@ export class AuthGuard implements CanActivate {
         }),
       );
 
-      console.log('Respuesta de verificación:', response.data); // Loguear la respuesta para depuración
-
-      // Verificamos si la respuesta indica que el token es válido
-      if (response.data && response.data.isValid) {
-        return true;
-      } else {
-        throw new UnauthorizedException('Token inválido o inactivo');
+      // If response doesn't contain a valid token flag
+      if (!(response.data && response.data.isValid)) {
+        throw new UnauthorizedException('Token is either invalid or has expired');
       }
+
+      return true;
     } catch (error) {
-      console.error('Error verificando el token:', error instanceof HttpException ? error.getResponse() : error);
-      throw new UnauthorizedException('Fallo en la verificación del token');
+      // Differentiate between internal errors and verification issues
+      if (error instanceof HttpException) {
+        throw new UnauthorizedException('Token verification failed with the remote service');
+      } else {
+        throw new UnauthorizedException('An unexpected error occurred during token verification');
+      }
     }
   }
 }
